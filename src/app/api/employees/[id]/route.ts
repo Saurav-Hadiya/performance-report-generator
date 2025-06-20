@@ -181,6 +181,29 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+
+    // check if the user is authenticated
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User is not authenticated' }, { status: 401 });
+    }
+
+    if (user.user_metadata.role !== 'organization') {
+      return NextResponse.json({ error: 'User is not an organization' }, { status: 401 });
+    }
+
+    // check if organization exists
+    const { data: organization, error: organizationError } = await supabase
+      .from('organization')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (organizationError) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+    }
+
     const { id } = await params;
 
     if (!id) {
@@ -193,20 +216,12 @@ export async function PUT(
     const body = await req.json();
     const { name, role, email, department, assignedReviewees } = body;
 
-    if (!name || !role || !email) {
-      return NextResponse.json(
-        { error: 'Name, role, and email are required fields' },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createClient();
-
     // First, get the current employee data to check if email is changing
     const { data: currentEmployee, error: fetchError } = await supabase
       .from('employees')
       .select('email')
       .eq('id', id)
+      .eq('organization_id', organization.id)
       .single();
 
     if (fetchError) {
@@ -245,28 +260,14 @@ export async function PUT(
       }
     }
 
-    const { data: orgData, error: orgError } = await supabase
-      .from('organization')
-      .select('id')
-      .single();
-
-    if (orgError) {
-      console.error('Error fetching organization:', orgError);
-      return NextResponse.json(
-        { error: 'Organization not found' },
-        { status: 404 }
-      );
-    }
     // First, get the department ID from the department name
     let departmentId = null;
     if (department) {
-      console.log('department: ', department);
-      console.log('orgData: ', orgData?.id);
       const { data: deptData, error: deptError } = await supabase
         .from('departments')
         .select('id')
         .eq('name', department)
-        .eq('organization_id', orgData?.id)
+        .eq('organization_id', organization.id)
         .single();
 
       if (deptError) {
@@ -290,6 +291,7 @@ export async function PUT(
         department_id: departmentId,
       })
       .eq('id', id)
+      .eq('organization_id', organization.id)
       .select(`
         id,
         name,
@@ -360,13 +362,13 @@ export async function PUT(
       }
     }
 
-    // Handle assigned reviewees if provided
+    // // Handle assigned reviewees if provided
     if (assignedReviewees && Array.isArray(assignedReviewees)) {
       // Delete existing relationships
       const { error: deleteRelError } = await supabase
         .from('employee_review_to')
         .delete()
-        .eq('reviewer_id', id);
+        .eq('reviewer_id', id)
 
       if (deleteRelError) {
         console.error('Error deleting existing review relationships:', deleteRelError);
@@ -386,7 +388,10 @@ export async function PUT(
 
         if (insertRelError) {
           console.error('Error creating review relationships:', insertRelError);
-          // Continue anyway as the employee was updated successfully
+          return NextResponse.json(
+            { error: 'Failed to create review relationships' },
+            { status: 500 }
+          );
         }
       }
     }
@@ -421,6 +426,7 @@ export async function PUT(
             name
           )
         `)
+        .eq('organization_id', organization.id)
         .in('id', revieweeIds);
 
       if (!revieweesError && reviewees) {
