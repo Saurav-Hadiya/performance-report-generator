@@ -51,7 +51,7 @@ export interface Report {
   qualities: string[];
   improvements: string[];
   summary: string;
-  criterias: { [key: string]: number };
+  criterias: { [key: string]: number } | null;
 }
 
 // Types for employee report details props
@@ -325,7 +325,7 @@ export const EmployeeReportDetails = ({
                 </CardContent>
               </Card>
 
-              <Card>
+             {selectedMonthReport.criterias && Object.keys(selectedMonthReport.criterias).length > 0 && <Card>
                 <CardHeader>
                   <CardTitle>Criterias</CardTitle>
                 </CardHeader>
@@ -338,7 +338,7 @@ export const EmployeeReportDetails = ({
                     ))}
                   </ul>
                 </CardContent>
-              </Card>
+              </Card>}
             </div>
           </TabsContent>
 
