@@ -64,9 +64,9 @@ export default function UpdatePassword() {
       const role = user?.user_metadata?.role;
       
       if (role === 'organization') {
-        router.push('/organization/dashboard');
+        router.push('/organization/signin');
       } else {
-        router.push('/dashboard');
+        router.push('/login');
       }
     } catch (error: any) {
       console.error('Update password error:', error);
