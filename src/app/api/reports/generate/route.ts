@@ -181,6 +181,7 @@ export async function POST(req: NextRequest) {
       improvements: newReport.improvements,
       qualities: newReport.qualities,
       summary: newReport.summary,
+      criterias: performanceReport.criterias,
       createdAt: newReport.created_at,
       updatedAt: newReport.created_at
     }, { status: 201 });

@@ -51,6 +51,7 @@ export interface Report {
   qualities: string[];
   improvements: string[];
   summary: string;
+  criterias: { [key: string]: number };
 }
 
 // Types for employee report details props
@@ -318,6 +319,21 @@ export const EmployeeReportDetails = ({
                     {selectedMonthReport.improvements.map((area, i) => (
                       <li key={i} className="text-sm">
                         {area}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Criterias</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="list-disc list-inside space-y-1">
+                    {Object.entries(selectedMonthReport.criterias).map(([key, value]) => (
+                      <li key={key} className="text-sm">
+                        {key}: {value} / 10
                       </li>
                     ))}
                   </ul>

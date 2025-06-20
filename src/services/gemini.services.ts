@@ -16,6 +16,7 @@ export interface PerformanceReport {
   improvements: string[];
   qualities: string[];
   summary: string;
+  criterias: { [key: string]: number };
 }
 
 /**
@@ -42,7 +43,7 @@ export const generatePerformanceReport = async (
     Please analyze the following feedback points from colleagues:
     ${reviewContents.map((content, i) => `${i + 1}. "${content}"`).join('\n')}
     
-    The employee's performance is evaluated based on the following criteria and score each of them from 0 to 10 and add the list in the summary:
+    The employee's performance is evaluated based on the following criteria and score each of them from 0 to 10, and add this point in crieterias in your response:
     1. Attitude
     2. Etiquette
     3. Communication Skills
@@ -65,13 +66,27 @@ export const generatePerformanceReport = async (
     2. A list of areas for improvement
     3. A list of strengths/qualities
     4. A brief summary of overall performance
-    
+    5. A list of criterias and their scores in this format: criterias: { [key: string]: number }
+
     Format your response as a valid JSON object with the following structure:
     {
       "ranking": number,
       "improvements": [string array],
       "qualities": [string array],
-      "summary": string
+      "summary": string,
+      "criterias": {
+        "attitude": number,
+        "etiquette": number,
+        "communicationSkills": number,
+        "creativity": number,
+        "adaptibility": number,
+        "technicalSkill": number,
+        "qualityOfCodeDesign": number,
+        "productivityLevels": number,
+        "requirementUnderstandingLevel": number,
+        "clientRelationHandling": number,
+        "independentlyTaskSuccessRatio": number,
+      }
     }
     `;
     
@@ -101,7 +116,8 @@ export const generatePerformanceReport = async (
       ranking: jsonResponse.ranking,
       improvements: jsonResponse.improvements,
       qualities: jsonResponse.qualities,
-      summary: jsonResponse.summary
+      summary: jsonResponse.summary,
+      criterias: jsonResponse.criterias
     };
   } catch (error) {
     console.error('Error generating performance report:', error);

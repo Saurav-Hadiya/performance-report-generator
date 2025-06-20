@@ -105,7 +105,8 @@ export default function ReportsPage() {
     ranking: selectedMonthReport.ranking,
     qualities: selectedMonthReport.qualities,
     improvements: selectedMonthReport.improvements,
-    summary: selectedMonthReport.summary
+    summary: selectedMonthReport.summary,
+    criterias: selectedMonthReport.criterias
   } : undefined;
 
   return (
