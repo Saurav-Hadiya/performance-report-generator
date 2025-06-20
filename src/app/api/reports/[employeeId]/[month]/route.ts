@@ -106,6 +106,7 @@ export async function GET(
       improvements: report.improvements,
       qualities: report.qualities,
       summary: report.summary,
+      criterias: report.criterias,
       createdAt: report.created_at,
       updatedAt: report.created_at
     };

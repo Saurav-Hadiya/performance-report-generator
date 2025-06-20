@@ -33,7 +33,7 @@ export interface Organization {
 }
 
 export interface PerformanceReport {
-  criterias: { [key: string]: number; };
+  criterias: { [key: string]: number; } | null;
   _id?: string;
   employeeId: string;
   month: string;
