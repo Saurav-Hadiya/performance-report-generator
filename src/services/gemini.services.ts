@@ -42,7 +42,7 @@ export const generatePerformanceReport = async (
     Please analyze the following feedback points from colleagues:
     ${reviewContents.map((content, i) => `${i + 1}. "${content}"`).join('\n')}
     
-    The employee's performance is evaluated based on the following criteria:
+    The employee's performance is evaluated based on the following criteria and score each of them from 0 to 10 and add the list in the summary:
     1. Attitude
     2. Etiquette
     3. Communication Skills
