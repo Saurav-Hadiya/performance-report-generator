@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
         ranking: performanceReport.ranking,
         improvements: performanceReport.improvements,
         qualities: performanceReport.qualities,
+        criterias: performanceReport.criterias,
         summary: performanceReport.summary
       })
       .select()
