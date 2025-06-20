@@ -36,6 +36,9 @@ export default function OrganizationSignup() {
             return
         }
 
+        // Save email for verification process
+        localStorage.setItem('verification_email', formData.email)
+        
         // Call the signUp mutation with the form data
         const { email, password } = formData
         signUp({ 
@@ -103,6 +106,10 @@ export default function OrganizationSignup() {
                                 onChange={handleChange}
                             />
                         </div>
+                        
+                        <p className="text-xs text-gray-500">
+                            You'll receive a verification email to verify your account before you can sign in.
+                        </p>
                     </div>
 
                     <Button
