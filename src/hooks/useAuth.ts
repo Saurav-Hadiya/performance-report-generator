@@ -27,16 +27,11 @@ export const useAuth = () => {
   
   const signUp = useSignUp({
     onSuccess: (data) => {
-      if (data.emailVerification) {
-        toast.success(data.message ?? 'Please check your email to verify your account');
-        router.push('/organization/signup/verification-sent');
-      } else if (data.user) {
+      if (data.user) {
         toast.success(data.message ?? 'Account created successfully');
         router.push('/organization/details');
       } else if (data.error) {
         toast.error(data.error);
-      } else {
-        toast.info(data.message);
       }
     },
     onError: (error) => {

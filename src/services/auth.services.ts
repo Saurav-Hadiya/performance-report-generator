@@ -18,7 +18,6 @@ export interface AuthResponse {
   user: User | null;
   message?: string;
   error?: string;
-  emailVerification?: boolean;
 }
 
 // Sign in with email and password
