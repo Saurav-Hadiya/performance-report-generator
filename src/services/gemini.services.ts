@@ -42,6 +42,24 @@ export const generatePerformanceReport = async (
     Please analyze the following feedback points from colleagues:
     ${reviewContents.map((content, i) => `${i + 1}. "${content}"`).join('\n')}
     
+    The employee's performance is evaluated based on the following criteria:
+    1. Attitude
+    2. Etiquette
+    3. Communication Skills
+    4. Creativity
+    5. Adaptibility
+    6. Technical skill
+    7. Quality of Code/Design
+    8. Productivity Levels
+    9. Requirment Understanding Level
+    10. Client Relation/Handling
+    11. Indpendantly Task Success Ratio
+    12. Multi Tasking Task Success Ratio
+    13. No of Projects and Title
+    14. Behaviour and Attitude
+    15. Attendance & Punctuality
+    16. Participation in Activity
+
     Based on the feedback, please generate a performance report with the following:
     1. A numerical ranking from 0-10 (with 10 being excellent)
     2. A list of areas for improvement
