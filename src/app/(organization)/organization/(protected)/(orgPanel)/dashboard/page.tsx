@@ -6,17 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, BadgeCheck, Users, Star, TrendingUp, Flag, Activity, Trophy, FileSpreadsheet, AlertTriangle } from "lucide-react";
 import { useBestEmployees, useGenerateMissingReports } from "@/hooks/reports";
+import { useEmployees } from "@/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useState } from "react";
 import { toast } from "sonner";
-
-// Mock data for the dashboard stats
-const stats = {
-  totalEmployees: 31,
-  averageRating: 7.9,
-  totalReviews: 124,
-  pendingReviews: 15,
-};
 
 export default function Dashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,6 +20,11 @@ export default function Dashboard() {
     error: bestEmployeesError,
     refetch: refetchBestEmployees
   } = useBestEmployees();
+
+  const {
+    data: employees = [],
+    isLoading: isLoadingEmployees
+  } = useEmployees();
 
   const generateMissingReportsMutation = useGenerateMissingReports({
     onSuccess: (data) => {
@@ -130,7 +128,13 @@ export default function Dashboard() {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Employees</p>
-              <p className="text-3xl font-bold">{stats.totalEmployees}</p>
+              <div className="text-3xl font-bold">
+                {isLoadingEmployees ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  employees.length
+                )}
+              </div>
             </div>
             <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
               <Users className="h-6 w-6" />
@@ -138,41 +142,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Average Rating</p>
-              <p className="text-3xl font-bold">{stats.averageRating}<span className="text-sm font-normal">/10</span></p>
-            </div>
-            <div className="h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600">
-              <Star className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Reviews</p>
-              <p className="text-3xl font-bold">{stats.totalReviews}</p>
-            </div>
-            <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-              <BadgeCheck className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Pending Reviews</p>
-              <p className="text-3xl font-bold">{stats.pendingReviews}</p>
-            </div>
-            <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-              <Flag className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Missing Reports Section */}

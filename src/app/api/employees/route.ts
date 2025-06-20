@@ -6,10 +6,19 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.user_metadata.role !== 'organization') {
+      return NextResponse.json(
+        { error: 'User is not an organization' },
+        { status: 401 }
+      );
+    }
+
     // Get the organization
     const { data: orgData, error: orgError } = await supabase
       .from('organization')
       .select('id')
+      .eq('user_id', user.id)
       .single();
     
     if (orgError) {
