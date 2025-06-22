@@ -49,7 +49,7 @@ export default function OrganizationDetailsPage() {
             }
 
             toast.success('Organization details saved successfully')
-            router.push('/dashboard') // Redirect to dashboard after saving details
+            router.push('organization/dashboard') // Redirect to dashboard after saving details
         } catch (error: any) {
             toast.error(error.message ?? 'Failed to save organization details')
         } finally {

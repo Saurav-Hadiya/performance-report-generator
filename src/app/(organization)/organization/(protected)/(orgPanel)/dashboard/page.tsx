@@ -4,27 +4,30 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BadgeCheck, Users, Star, TrendingUp, Flag, Activity, Trophy, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { AlertCircle, BadgeCheck, Users, Star, TrendingUp, Flag, Activity, Trophy, FileSpreadsheet, AlertTriangle, UserPlus } from "lucide-react";
 import { useBestEmployees, useGenerateMissingReports } from "@/hooks/reports";
 import { useEmployees } from "@/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useState } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function Dashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const {
+    data: employees = [],
+    isLoading: isLoadingEmployees
+  } = useEmployees();
 
   const {
     data: bestEmployeeData,
     isLoading: isLoadingBestEmployees,
     error: bestEmployeesError,
     refetch: refetchBestEmployees
-  } = useBestEmployees();
-
-  const {
-    data: employees = [],
-    isLoading: isLoadingEmployees
-  } = useEmployees();
+  } = useBestEmployees({
+    enabled: employees.length > 0 // Only fetch when there are employees
+  });
 
   const generateMissingReportsMutation = useGenerateMissingReports({
     onSuccess: (data) => {
@@ -114,6 +117,62 @@ export default function Dashboard() {
     const date = new Date(parseInt(year), parseInt(month) - 1);
     return `${date.toLocaleString('default', { month: 'short' })} ${year}`;
   };
+
+  // Early return for no employees case
+  if (!isLoadingEmployees && employees.length === 0) {
+    return (
+      <div className="space-y-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Employees</p>
+                <div className="text-3xl font-bold">0</div>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                <Users className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* No Employees State */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Users className="h-5 w-5 text-gray-400" />
+              Welcome to Your Dashboard
+            </CardTitle>
+            <CardDescription>
+              Get started by adding your first employee to begin tracking performance
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12">
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-20 w-20 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Users className="h-10 w-10 text-gray-400" />
+                </div>
+                <div className="max-w-md">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Employees Yet</h3>
+                  <p className="text-gray-600 mb-6">
+                    Your organization doesn't have any employees yet. Add employees to start tracking their performance and generating reports.
+                  </p>
+                  <Button asChild>
+                    <Link href="/organization/employees">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add Your First Employee
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
