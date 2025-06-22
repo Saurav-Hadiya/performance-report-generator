@@ -65,6 +65,24 @@ export const inviteEmployee = async (employeeData: {
     return response.json();
 };
 
+// Resend invitation to an employee
+export const resendInvitation = async (employeeId: string): Promise<{ message: string }> => {
+    const response = await fetch('/api/employees/resend-invite', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ employeeId }),
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to resend invitation');
+    }
+    
+    return response.json();
+};
+
 // Update an employee
 export const updateEmployee = async (id: string, employee: Partial<Employee>): Promise<Employee> => {
     const response = await fetch(`/api/employees/${id}`, {

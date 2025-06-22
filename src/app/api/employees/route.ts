@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import supabaseAdmin from '@/lib/supabase/admin';
 
 // GET all employees
 export async function GET(req: NextRequest) {
@@ -54,6 +55,25 @@ export async function GET(req: NextRequest) {
       );
     }
     
+    // Get all users from Supabase auth to check confirmation status
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('Error fetching auth users:', authError);
+      // Continue without auth status
+    }
+    
+    // Create a map of email to confirmation status
+    const emailConfirmationMap = new Map();
+    if (authUsers?.users) {
+      authUsers.users.forEach(user => {
+        emailConfirmationMap.set(user.email, {
+          confirmed: !!user.email_confirmed_at,
+          userId: user.id
+        });
+      });
+    }
+    
     // Get review relationships for all employees
     const { data: reviewRelationships, error: relError } = await supabase
       .from('employee_review_to')
@@ -91,13 +111,18 @@ export async function GET(req: NextRequest) {
       // Use type assertion for departments
       const dept = (employee.departments as any)?.name ?? null;
       
+      // Get email confirmation status
+      const authStatus = employee.email ? emailConfirmationMap.get(employee.email) : null;
+      const emailConfirmed = authStatus?.confirmed || false;
+      
       return {
         _id: employee.id,
         name: employee.name,
         role: employee.role,
         email: employee.email,
         department: dept,
-        assignedReviewees
+        assignedReviewees,
+        emailConfirmed
       };
     });
     

@@ -35,6 +35,7 @@ import {
     useEmployee,
     useEmployees,
     useOrganization,
+    useResendInvitation,
     useUpdateEmployee
 } from "@/hooks";
 import {
@@ -51,6 +52,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import queryKeys from "@/constants/QueryKeys";
 
 // Helper type for the edited employee form
 interface EditedEmployeeForm {
@@ -64,6 +67,7 @@ interface EditedEmployeeForm {
 export default function EmployeeProfilePage() {
     const params = useParams();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const id = params.id as string;
 
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -85,6 +89,7 @@ export default function EmployeeProfilePage() {
     } = useOrganization();
 
     const { mutate: updateEmployee, isPending: isUpdating } = useUpdateEmployee();
+    const { mutate: resendInvitation, isPending: isResending } = useResendInvitation();
 
     const [editedEmployee, setEditedEmployee] = useState<EditedEmployeeForm>({
         name: "",
@@ -186,6 +191,18 @@ export default function EmployeeProfilePage() {
         return emailRegex.test(email);
     };
 
+    const handleResendInvitation = () => {
+        resendInvitation(id, {
+            onSuccess: (response) => {
+                toast.success(response.message || "Invitation resent successfully");
+                queryClient.invalidateQueries({ queryKey: queryKeys.employee(id) });
+            },
+            onError: (error) => {
+                toast.error(`Failed to resend invitation: ${error.message}`);
+            }
+        });
+    };
+
     const departments = organization?.departments || [];
     const isLoading = isLoadingEmployee || isLoadingOrganization;
 
@@ -239,15 +256,34 @@ export default function EmployeeProfilePage() {
                             <CardTitle className="text-2xl">{employee.name}</CardTitle>
                             <CardDescription>{employee.role}</CardDescription>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleOpenEditDialog}
-                            className="flex items-center gap-2"
-                        >
-                            <Edit className="h-4 w-4" />
-                            Edit Profile
-                        </Button>
+                        <div className="flex gap-2">
+                            {employee.email && !employee.emailConfirmed && (
+                              <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleResendInvitation}
+                                  disabled={isResending}
+                                  className="flex items-center gap-2"
+                                  title="Resend invitation email to employee"
+                              >
+                                  {isResending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                      <Mail className="h-4 w-4" />
+                                  )}
+                                  Resend Invitation
+                              </Button>
+                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleOpenEditDialog}
+                                className="flex items-center gap-2"
+                            >
+                                <Edit className="h-4 w-4" />
+                                Edit Profile
+                            </Button>
+                        </div>
                     </CardHeader>
 
                     <CardContent className="space-y-6">
@@ -274,6 +310,12 @@ export default function EmployeeProfilePage() {
                                         <p className="text-base font-medium flex items-center gap-2">
                                             <Mail className="h-4 w-4 text-gray-500" />
                                             {employee.email}
+                                            {employee.email && !employee.emailConfirmed && (
+                                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                    <Mail className="h-3 w-3" />
+                                                    Pending Confirmation
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
 

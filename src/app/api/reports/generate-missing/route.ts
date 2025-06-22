@@ -110,8 +110,6 @@ export async function POST(req: NextRequest) {
             }
             continue;
           }
-          // For current month, continue to regenerate the report
-          console.log(`Regenerating report for current month ${month}`);
         }
         
         // Get the start and end dates for the month

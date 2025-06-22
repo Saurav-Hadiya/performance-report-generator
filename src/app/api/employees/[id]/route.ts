@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import supabaseAdmin from '@/lib/supabase/admin';
 
 // GET a specific employee
 export async function GET(
@@ -85,6 +86,17 @@ export async function GET(
       }
     }
 
+    // Check email confirmation status from Supabase auth
+    let emailConfirmed = false;
+    if (employee.email) {
+      const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+      
+      if (!authError && authUsers?.users) {
+        const authUser = authUsers.users.find(user => user.email === employee.email);
+        emailConfirmed = authUser ? !!authUser.email_confirmed_at : false;
+      }
+    }
+
     // Format the response
     const formattedEmployee = {
       _id: employee.id,
@@ -92,7 +104,8 @@ export async function GET(
       role: employee.role,
       email: employee.email,
       department: (employee.departments as any)?.name ?? null,
-      assignedReviewees
+      assignedReviewees,
+      emailConfirmed
     };
 
     return NextResponse.json(formattedEmployee, { status: 200 });
@@ -439,6 +452,17 @@ export async function PUT(
       }
     }
 
+    // Check email confirmation status from Supabase auth
+    let emailConfirmed = false;
+    if (updatedEmployee.email) {
+      const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+      
+      if (!authError && authUsers?.users) {
+        const authUser = authUsers.users.find(user => user.email === updatedEmployee.email);
+        emailConfirmed = authUser ? !!authUser.email_confirmed_at : false;
+      }
+    }
+
     // Format the response
     const formattedEmployee = {
       _id: updatedEmployee.id,
@@ -447,7 +471,8 @@ export async function PUT(
       email: updatedEmployee.email,
       department: (updatedEmployee.departments as any)?.name ?? null,
       assignedReviewees: updatedAssignedReviewees,
-      emailChanged: isEmailChanging // Add flag to indicate email was changed
+      emailChanged: isEmailChanging,
+      emailConfirmed
     };
 
     return NextResponse.json(formattedEmployee, { status: 200 });

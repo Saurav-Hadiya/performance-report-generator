@@ -13,14 +13,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCreateEmployee, useDeleteEmployee, useEmployees, useInviteEmployee, useOrganization } from "@/hooks";
+import { useCreateEmployee, useDeleteEmployee, useEmployees, useInviteEmployee, useResendInvitation, useOrganization } from "@/hooks";
 import { Building, CheckCircle2, Loader2, Mail, Search, Table, Trash2, User, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useQueryClient } from "@tanstack/react-query";
+import queryKeys from "@/constants/QueryKeys";
 
 export default function EmployeesPage() {
+  const queryClient = useQueryClient();
+  
   const {
     data: employees = [],
     isLoading: isLoadingEmployees,
@@ -35,10 +39,12 @@ export default function EmployeesPage() {
   const { mutate: createEmployee, isPending: isCreating } = useCreateEmployee();
   const { mutate: deleteEmployee, isPending: isDeleting } = useDeleteEmployee();
   const { mutate: inviteEmployee, isPending: isInviting } = useInviteEmployee();
+  const { mutate: resendInvitation, isPending: isResending } = useResendInvitation();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("directory");
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
+  const [resendingEmployeeId, setResendingEmployeeId] = useState<string | null>(null);
 
   // New employee form state
   const [newEmployee, setNewEmployee] = useState({
@@ -127,6 +133,21 @@ export default function EmployeesPage() {
         }
       });
     }
+  };
+
+  const handleResendInvitation = (id: string) => {
+    setResendingEmployeeId(id);
+    resendInvitation(id, {
+      onSuccess: (response) => {
+        toast.success(response.message || "Invitation resent successfully");
+        queryClient.invalidateQueries({ queryKey: [queryKeys.employees] });
+        setResendingEmployeeId(null);
+      },
+      onError: (error) => {
+        toast.error(`Failed to resend invitation: ${error.message}`);
+        setResendingEmployeeId(null);
+      }
+    });
   };
 
   const isValidEmail = (email: string) => {
@@ -251,6 +272,12 @@ export default function EmployeesPage() {
                                     {employee.department}
                                   </span>
                                 )}
+                                {employee.email && !employee.emailConfirmed && (
+                                  <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <Mail className="h-3 w-3" />
+                                    Pending
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -264,6 +291,22 @@ export default function EmployeesPage() {
                                 <User className="h-4 w-4" />
                               </Button>
                             </Link>
+                            {employee.email && !employee.emailConfirmed && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleResendInvitation(employee._id)}
+                                disabled={resendingEmployeeId === employee._id}
+                                title="Resend invitation email to employee"
+                              >
+                                {resendingEmployeeId === employee._id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"

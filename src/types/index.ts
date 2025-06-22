@@ -9,6 +9,7 @@ export interface Employee {
   createdAt?: Date;
   updatedAt?: Date;
   emailChanged?: boolean;
+  emailConfirmed?: boolean;
 }
 
 export interface Review {

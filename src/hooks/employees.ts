@@ -6,6 +6,7 @@ import {
     fetchEmployees,
     fetchAssignedEmployees,
     inviteEmployee,
+    resendInvitation,
     updateEmployee,
 } from '@/services/employee.services';
 import { Employee } from '@/types';
@@ -82,6 +83,19 @@ export const useInviteEmployee = (
 ) => {
     return useMutation({
         mutationFn: inviteEmployee,
+        ...options,
+    });
+};
+
+export const useResendInvitation = (
+    options?: UseMutationOptions<
+        { message: string },
+        Error,
+        string
+    >
+) => {
+    return useMutation({
+        mutationFn: resendInvitation,
         ...options,
     });
 };
