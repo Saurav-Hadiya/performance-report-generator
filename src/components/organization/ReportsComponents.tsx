@@ -2,11 +2,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Employee } from "@/types";
-import { CalendarIcon, Filter, Loader2, Search } from "lucide-react";
+import { CalendarIcon, Filter, Loader2, Search, AlertTriangle, Activity, CheckCircle2, Calendar, RefreshCw } from "lucide-react";
 import { Dispatch, SetStateAction, MouseEventHandler } from "react";
+import { Badge } from "@/components/ui/badge";
+import { isCurrentMonth, isCompletedMonth, isFutureMonth } from "@/lib/utils";
 
 // Types for the month options
 export interface MonthOption {
@@ -237,6 +246,9 @@ export const EmployeeReportDetails = ({
   }
   
   if (!selectedMonthReport) {
+    const isCurrent = isCurrentMonth(selectedMonth);
+    const isCompleted = isCompletedMonth(selectedMonth);
+    
     return (
       <Card className="lg:col-span-2 h-[700px] overflow-hidden flex flex-col">
         <div className="flex flex-col items-center justify-center h-full p-6">
@@ -245,15 +257,27 @@ export const EmployeeReportDetails = ({
             No performance report is available for {selectedEmployee.name} for {" "}
             {monthOptions.find(m => m.value === selectedMonth)?.label}.
           </p>
+          
+          {isFutureMonth(selectedMonth) && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700">
+                <AlertTriangle className="h-4 w-4 inline mr-1" />
+                Reports for future months cannot be generated as no reviews are available yet.
+              </p>
+            </div>
+          )}
+          
           <Button
             onClick={handleGenerateReport}
-            disabled={isGenerating}
+            disabled={isGenerating || isFutureMonth(selectedMonth)}
           >
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Generating...
               </>
+            ) : isFutureMonth(selectedMonth) ? (
+              "Cannot Generate (Future Month)"
             ) : (
               "Generate Report"
             )}
@@ -262,6 +286,9 @@ export const EmployeeReportDetails = ({
       </Card>
     );
   }
+  
+  const isCurrent = isCurrentMonth(selectedMonth);
+  const isCompleted = isCompletedMonth(selectedMonth);
   
   return (
     <Card className="lg:col-span-2 h-[700px] overflow-hidden flex flex-col">
@@ -283,6 +310,50 @@ export const EmployeeReportDetails = ({
             <div className="text-2xl font-bold text-yellow-600">{selectedMonthReport.ranking}</div>
             <div className="text-sm text-gray-500">/ 10</div>
           </div>
+        </div>
+        
+        {/* Month status indicator */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-2">
+            {isCurrent ? (
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <Activity className="h-3 w-3 mr-1" />
+                Current Month
+              </Badge>
+            ) : isCompleted ? (
+              <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Completed Month
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                <Calendar className="h-3 w-3 mr-1" />
+                Future Month
+              </Badge>
+            )}
+          </div>
+          
+          {/* Regenerate button for current month */}
+          {isCurrent && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateReport}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Regenerate
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </CardHeader>
 

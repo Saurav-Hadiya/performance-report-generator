@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generatePerformanceReport } from '@/services/gemini.services';
+import { isCurrentMonth, isCompletedMonth } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,27 +82,36 @@ export async function POST(req: NextRequest) {
           .single();
           
         if (existingReport) {
-          // Report already exists, get the full data and add to generated reports
-          const { data: fullReport } = await supabase
-            .from('reports')
-            .select('*')
-            .eq('id', existingReport.id)
-            .single();
-            
-          if (fullReport) {
-            generatedReports.push({
-              _id: fullReport.id,
-              employeeId: fullReport.employee_id,
-              month: fullReport.month,
-              ranking: fullReport.ranking,
-              improvements: fullReport.improvements,
-              qualities: fullReport.qualities,
-              summary: fullReport.summary,
-              createdAt: fullReport.created_at,
-              updatedAt: fullReport.created_at
-            });
+          const isCurrent = isCurrentMonth(month);
+          const isCompleted = isCompletedMonth(month);
+          
+          if (isCompleted) {
+            // For completed months, just get the existing report without regenerating
+            const { data: fullReport } = await supabase
+              .from('reports')
+              .select('*')
+              .eq('id', existingReport.id)
+              .single();
+              
+            if (fullReport) {
+              generatedReports.push({
+                _id: fullReport.id,
+                employeeId: fullReport.employee_id,
+                month: fullReport.month,
+                ranking: fullReport.ranking,
+                improvements: fullReport.improvements,
+                qualities: fullReport.qualities,
+                summary: fullReport.summary,
+                createdAt: fullReport.created_at,
+                updatedAt: fullReport.created_at,
+                isRegenerated: false,
+                message: 'Report for completed month cannot be regenerated'
+              });
+            }
+            continue;
           }
-          continue;
+          // For current month, continue to regenerate the report
+          console.log(`Regenerating report for current month ${month}`);
         }
         
         // Get the start and end dates for the month
@@ -126,7 +136,8 @@ export async function POST(req: NextRequest) {
             ranking: 0, // Zero rating when no reviews
             improvements: [], // No improvements to note
             qualities: [], // No qualities to note
-            summary: `No reviews were found for ${employee.name} in ${month}. No performance data available.`
+            summary: `No reviews were found for ${employee.name} in ${month}. No performance data available.`,
+            criterias: []
           };
         } else {
           // Extract review contents
@@ -140,39 +151,77 @@ export async function POST(req: NextRequest) {
           );
         }
         
-        // Save the report to the database
-        const { data: newReport, error: insertError } = await supabase
-          .from('reports')
-          .insert({
-            employee_id: employeeId,
-            month: month,
-            ranking: performanceReport.ranking,
-            improvements: performanceReport.improvements,
-            qualities: performanceReport.qualities,
-            summary: performanceReport.summary
-          })
-          .select()
-          .single();
+        let newReport;
+        let isRegenerated = false;
         
-        if (insertError) {
-          console.error(`Error saving report for ${month}:`, insertError);
-          failedMonths.push({
-            month,
-            error: insertError.message
-          });
+        if (existingReport && isCurrentMonth(month)) {
+          // Update existing report for current month
+          const { data: updatedReport, error: updateError } = await supabase
+            .from('reports')
+            .update({
+              ranking: performanceReport.ranking,
+              improvements: performanceReport.improvements,
+              qualities: performanceReport.qualities,
+              criterias: performanceReport.criterias,
+              summary: performanceReport.summary
+            })
+            .eq('id', existingReport.id)
+            .select()
+            .single();
+          
+          if (updateError) {
+            console.error(`Error updating report for ${month}:`, updateError);
+            failedMonths.push({
+              month,
+              error: updateError.message
+            });
+            continue;
+          }
+          
+          newReport = updatedReport;
+          isRegenerated = true;
         } else {
-          generatedReports.push({
-            _id: newReport.id,
-            employeeId: newReport.employee_id,
-            month: newReport.month,
-            ranking: newReport.ranking,
-            improvements: newReport.improvements,
-            qualities: newReport.qualities,
-            summary: newReport.summary,
-            createdAt: newReport.created_at,
-            updatedAt: newReport.created_at
-          });
+          // Insert new report
+          const { data: insertedReport, error: insertError } = await supabase
+            .from('reports')
+            .insert({
+              employee_id: employeeId,
+              month: month,
+              ranking: performanceReport.ranking,
+              improvements: performanceReport.improvements,
+              qualities: performanceReport.qualities,
+              criterias: performanceReport.criterias,
+              summary: performanceReport.summary
+            })
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error(`Error saving report for ${month}:`, insertError);
+            failedMonths.push({
+              month,
+              error: insertError.message
+            });
+            continue;
+          }
+          
+          newReport = insertedReport;
         }
+        
+        generatedReports.push({
+          _id: newReport.id,
+          employeeId: newReport.employee_id,
+          month: newReport.month,
+          ranking: newReport.ranking,
+          improvements: newReport.improvements,
+          qualities: newReport.qualities,
+          summary: newReport.summary,
+          criterias: performanceReport.criterias,
+          createdAt: newReport.created_at,
+          updatedAt: newReport.created_at,
+          isRegenerated,
+          message: isRegenerated ? 'Report regenerated successfully' : 'Report generated successfully'
+        });
       } catch (error) {
         console.error(`Error generating report for ${month}:`, error);
         failedMonths.push({

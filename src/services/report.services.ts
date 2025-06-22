@@ -25,7 +25,7 @@ export const generateEmployeeReport = async ({
 }: {
     employeeId: string;
     month: string;
-}): Promise<PerformanceReport> => {
+}): Promise<PerformanceReport & { isRegenerated?: boolean; message?: string }> => {
     const response = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: {

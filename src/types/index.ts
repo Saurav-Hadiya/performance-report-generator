@@ -43,4 +43,6 @@ export interface PerformanceReport {
   summary: string;
   createdAt?: Date;
   updatedAt?: Date;
+  isRegenerated?: boolean;
+  message?: string;
 }

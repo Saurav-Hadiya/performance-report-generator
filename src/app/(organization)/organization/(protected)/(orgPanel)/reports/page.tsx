@@ -62,8 +62,16 @@ export default function ReportsPage() {
     mutate: generateReport,
     isPending: isGenerating
   } = useGenerateReport({
-    onSuccess: () => {
-      toast.success(`Report generated for ${selectedEmployee?.name}`);
+    onSuccess: (data) => {
+      if (data.isRegenerated) {
+        toast.success(`Report regenerated for ${selectedEmployee?.name}`, {
+          description: data.message || 'Report has been updated with latest data.',
+        });
+      } else {
+        toast.success(`Report generated for ${selectedEmployee?.name}`, {
+          description: data.message || 'New report has been created successfully.',
+        });
+      }
     },
     onError: (error) => {
       toast.error(error.message);

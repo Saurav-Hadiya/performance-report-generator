@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generatePerformanceReport } from '@/services/gemini.services';
+import { isCurrentMonth, isCompletedMonth } from '@/lib/utils';
 
 // Helper to validate month format
 function isValidMonth(month: string): boolean {
@@ -75,19 +76,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // If report exists, check if regeneration is allowed
     if (existingReport) {
-      // Return existing report
-      return NextResponse.json({
-        _id: existingReport.id,
-        employeeId: existingReport.employee_id,
-        month: existingReport.month,
-        ranking: existingReport.ranking,
-        improvements: existingReport.improvements,
-        qualities: existingReport.qualities,
-        summary: existingReport.summary,
-        createdAt: existingReport.created_at,
-        updatedAt: existingReport.created_at
-      }, { status: 200 });
+      const isCurrent = isCurrentMonth(month);
+      const isCompleted = isCompletedMonth(month);
+      
+      if (isCompleted) {
+        // Return existing report for completed months (no regeneration allowed)
+        return NextResponse.json({
+          _id: existingReport.id,
+          employeeId: existingReport.employee_id,
+          month: existingReport.month,
+          ranking: existingReport.ranking,
+          improvements: existingReport.improvements,
+          qualities: existingReport.qualities,
+          summary: existingReport.summary,
+          createdAt: existingReport.created_at,
+          updatedAt: existingReport.created_at,
+          isRegenerated: false,
+          message: 'Report for completed month cannot be regenerated'
+        }, { status: 200 });
+      }
     }
 
     // Get employee details
@@ -116,7 +125,7 @@ export async function POST(req: NextRequest) {
     // Get the start and end dates for the month
     const [year, monthNum] = month.split('-').map(Number);
     const startDate = new Date(year, monthNum - 1, 1);
-    const endDate = new Date(year, monthNum, 0, 23, 59, 59); // Last day of the month
+    const endDate = new Date(year, monthNum, 0, 23, 59, 59);
 
     // Get reviews for this employee for the specified month
     const { data: reviews, error: reviewsError } = await supabase
@@ -144,34 +153,66 @@ export async function POST(req: NextRequest) {
     // Extract review contents
     const reviewContents = reviews.map(review => review.content);
 
-    // Generate a report using Gemini AI
+    // Generate a report using the generatePerformanceReport function
     const performanceReport = await generatePerformanceReport(
       reviewContents,
       employee.name,
       employee.role
     );
 
-    // Save the report to the database
-    const { data: newReport, error: insertError } = await supabase
-      .from('reports')
-      .insert({
-        employee_id: employeeId,
-        month: month,
-        ranking: performanceReport.ranking,
-        improvements: performanceReport.improvements,
-        qualities: performanceReport.qualities,
-        criterias: performanceReport.criterias,
-        summary: performanceReport.summary
-      })
-      .select()
-      .single();
+    let newReport;
+    let isRegenerated = false;
 
-    if (insertError) {
-      console.error('Error saving report:', insertError);
-      return NextResponse.json(
-        { error: 'Failed to save report' },
-        { status: 500 }
-      );
+    if (existingReport && isCurrentMonth(month)) {
+      // Update existing report for current month
+      const { data: updatedReport, error: updateError } = await supabase
+        .from('reports')
+        .update({
+          ranking: performanceReport.ranking,
+          improvements: performanceReport.improvements,
+          qualities: performanceReport.qualities,
+          criterias: performanceReport.criterias,
+          summary: performanceReport.summary
+        })
+        .eq('id', existingReport.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating report:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to update report' },
+          { status: 500 }
+        );
+      }
+
+      newReport = updatedReport;
+      isRegenerated = true;
+    } else {
+      // Insert new report
+      const { data: insertedReport, error: insertError } = await supabase
+        .from('reports')
+        .insert({
+          employee_id: employeeId,
+          month: month,
+          ranking: performanceReport.ranking,
+          improvements: performanceReport.improvements,
+          qualities: performanceReport.qualities,
+          criterias: performanceReport.criterias,
+          summary: performanceReport.summary
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error saving report:', insertError);
+        return NextResponse.json(
+          { error: 'Failed to save report' },
+          { status: 500 }
+        );
+      }
+
+      newReport = insertedReport;
     }
 
     return NextResponse.json({
@@ -184,8 +225,10 @@ export async function POST(req: NextRequest) {
       summary: newReport.summary,
       criterias: performanceReport.criterias,
       createdAt: newReport.created_at,
-      updatedAt: newReport.created_at
-    }, { status: 201 });
+      updatedAt: newReport.created_at,
+      isRegenerated,
+      message: isRegenerated ? 'Report regenerated successfully' : 'Report generated successfully'
+    }, { status: isRegenerated ? 200 : 201 });
   } catch (error) {
     console.error('Failed to generate report:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to generate report';
