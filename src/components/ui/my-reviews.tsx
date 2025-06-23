@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,10 +27,22 @@ interface Review {
 
 export function MyReviews() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   
-  // Use the new hook to fetch reviews written by the current user
-  const { data, isLoading, isError, refetch } = useMyReviews();
+  // Debounce search query to avoid too many API calls
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+  
+  // Use the updated hook with debounced search query
+  const { data, isLoading, isError, refetch } = useMyReviews(debouncedQuery);
   
   // Get reviews from the response or default to empty array
   const userReviews = data?.reviews || [];
@@ -58,13 +70,7 @@ export function MyReviews() {
     return employee.department;
   };
 
-  const filteredReviews = userReviews.filter((review: { content: string; targetEmployee: any; }) => {
-    const matchesSearch =
-      review.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      getEmployeeName(review.targetEmployee).toLowerCase().includes(searchQuery.toLowerCase());
-    if (activeTab === "all") return matchesSearch;
-    return matchesSearch;
-  });
+  const filteredReviews = userReviews;
 
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);

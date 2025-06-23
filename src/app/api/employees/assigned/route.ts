@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 // GET assigned employees for the authenticated employee
 export async function GET(req: NextRequest) {
   try {
+    // Get search query from URL params
+    const searchQuery = req.nextUrl.searchParams.get('search') || '';
+    
     const supabase = await createClient();
     
     // Get the authenticated user
@@ -60,10 +63,20 @@ export async function GET(req: NextRequest) {
     
     if (revieweeIds.length === 0) {
       // No assigned reviewees, return empty array
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json({
+        currentEmployee: {
+          _id: currentEmployee.id,
+          name: currentEmployee.name,
+          role: currentEmployee.role,
+          email: currentEmployee.email,
+          department: (currentEmployee.departments as any)?.name ?? null
+        },
+        assignedReviewees: []
+      }, { status: 200 });
     }
     
-    const { data: reviewees, error: revieweeError } = await supabase
+    // Build the query for reviewees
+    let query = supabase
       .from('employees')
       .select(`
         id,
@@ -73,17 +86,24 @@ export async function GET(req: NextRequest) {
         departments:department_id(
           id,
           name
-          )
-          `)
-          .in('id', revieweeIds);
+        )
+      `)
+      .in('id', revieweeIds);
+    
+    // Apply search filter on the server side if provided
+    if (searchQuery) {
+      query = query.or(`name.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%`);
+    }
           
-          if (revieweeError) {
-            console.error('Error fetching reviewee details:', revieweeError);
-            return NextResponse.json(
-              { error: 'Failed to fetch reviewee details' },
-              { status: 500 }
-            );
-          }
+    const { data: reviewees, error: revieweeError } = await query;
+          
+    if (revieweeError) {
+      console.error('Error fetching reviewee details:', revieweeError);
+      return NextResponse.json(
+        { error: 'Failed to fetch reviewee details' },
+        { status: 500 }
+      );
+    }
     
     // Format the response to match the expected structure
     const formattedReviewees = reviewees.map(reviewee => {

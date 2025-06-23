@@ -28,10 +28,13 @@ export const useEmployees = (options?: UseQueryOptions<Employee[]>) => {
 };
 
 // Hook for authenticated employees to get their assigned reviewees
-export const useAssignedEmployees = (options?: UseQueryOptions<{currentEmployee: Employee, assignedReviewees: Employee[]}>) => {
+export const useAssignedEmployees = (
+    searchQuery?: string, 
+    options?: UseQueryOptions<{currentEmployee: Employee, assignedReviewees: Employee[]}>
+) => {
     return useQuery({
-        queryKey: [queryKeys.assignedEmployees],
-        queryFn: fetchAssignedEmployees,
+        queryKey: [queryKeys.assignedEmployees, searchQuery],
+        queryFn: () => fetchAssignedEmployees(searchQuery),
         ...options,
     });
 };

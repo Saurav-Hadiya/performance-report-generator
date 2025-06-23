@@ -170,6 +170,12 @@ export function EmployeeFeedback({
               onChange={(e) => setNewReview(e.target.value)}
               className="min-h-[80px] max-h-[120px] resize-none"
               disabled={isSubmitting}
+              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmitReview();
+                }
+              }}
             />
           </div>
           <Button

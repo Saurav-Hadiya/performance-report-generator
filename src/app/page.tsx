@@ -28,22 +28,37 @@ export default function Home() {
   const [viewMyReviews, setViewMyReviews] = useState(false);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  // We don't need to set current user ID manually anymore - it comes from auth
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+  
+  // Search state for employees - lifted up from sidebar
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  
+  // Debounce search query to avoid too many API calls
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
   
   const router = useRouter();
   const supabase = createClient();
 
-  // Use the new assigned employees hook for authenticated employee view
+  // Use the assigned employees hook with search parameter
   const {
     data: assignedData,
     isLoading: assignedLoading,
     isError: assignedError,
     refetch: refetchAssigned
-  } = useAssignedEmployees();
+  } = useAssignedEmployees(debouncedQuery);
 
   // Extract current employee and assigned reviewees from the response
   const currentEmployee = assignedData?.currentEmployee;
+  // employees list for the initial employee selection
   const employees = assignedData?.assignedReviewees || [];
 
   // Set current user ID from the authenticated employee data
@@ -164,13 +179,11 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-full">
           {/* Sidebar */}
           <div className="md:col-span-3 lg:col-span-3 bg-white rounded-lg shadow h-full overflow-hidden">
-            {isLoading && (
-              <div className="flex justify-center items-center h-full">
-                <div className="animate-spin rounded-full h-6 md:h-12 w-6 md:w-12 border-t-2 border-b-2 border-red-500" />
-              </div>
-            )}
             <Sidebar
               employees={employees}
+              isLoading={assignedLoading}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
               onSelectEmployee={handleSelectEmployee}
               onViewMyReviews={handleViewMyReviews}
               selectedEmployeeId={selectedEmployee?._id}

@@ -10,8 +10,9 @@ export const fetchEmployees = async (): Promise<Employee[]> => {
 };
 
 // Fetch assigned employees for authenticated employee
-export const fetchAssignedEmployees = async (): Promise<{currentEmployee: Employee, assignedReviewees: Employee[]}> => {
-    const response = await fetch('/api/employees/assigned');
+export const fetchAssignedEmployees = async (searchQuery?: string): Promise<{currentEmployee: Employee, assignedReviewees: Employee[]}> => {
+    const queryParams = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : '';
+    const response = await fetch(`/api/employees/assigned${queryParams}`);
     if (!response.ok) {
         throw new Error('Failed to fetch assigned employees');
     }

@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, User } from "lucide-react";
 import { Employee } from "@/types";
+import { Dispatch, SetStateAction } from "react";
 
 interface SidebarProps {
   employees: Employee[];
+  isLoading: boolean;
+  searchQuery: string;
+  setSearchQuery: Dispatch<SetStateAction<string>>;
   onSelectEmployee: (employee: Employee) => void;
   onViewMyReviews: () => void;
   selectedEmployeeId?: string;
@@ -18,39 +21,14 @@ interface SidebarProps {
 
 export function Sidebar({
   employees,
+  isLoading,
+  searchQuery,
+  setSearchQuery,
   onSelectEmployee,
   onViewMyReviews,
   selectedEmployeeId,
   currentUserId
 }: Readonly<SidebarProps>) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Get the current user
-  const currentUser = currentUserId ? employees.find(emp => emp._id === currentUserId) : null;
-
-  // Get the list of employees that the current user can review
-  const assignedReviewees = currentUser?.assignedReviewees || [];
-
-  // Filter employees based on search query and whether they are assigned to the current user
-  const filteredEmployees = employees.filter((employee) => {
-    // First check if this employee is assigned to the current user for reviews
-    const isAssignedForReview = !currentUserId ||
-      !assignedReviewees.length ||
-      assignedReviewees.some(reviewee =>
-        typeof reviewee === 'string'
-          ? reviewee === employee._id
-          : reviewee._id === employee._id
-      );
-
-    // Then apply the search filter
-    const matchesSearch =
-      employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (employee.department && employee.department.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    return isAssignedForReview && matchesSearch;
-  });
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -83,8 +61,12 @@ export function Sidebar({
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-full">
           <div className="p-2 space-y-1">
-            {filteredEmployees.length > 0 ? (
-              filteredEmployees.map((employee) => (
+            {isLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-red-500" />
+              </div>
+            ) : employees.length > 0 ? (
+              employees.map((employee) => (
                 <button
                   key={employee._id}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm ${selectedEmployeeId === employee._id
@@ -106,9 +88,9 @@ export function Sidebar({
             ) : (
               <div className="px-3 py-8 text-center">
                 <p className="text-gray-500">
-                  {currentUserId && assignedReviewees.length === 0
-                    ? "You don't have permission to review any employees"
-                    : "No employees found"}
+                  {searchQuery 
+                    ? "No employees found matching your search" 
+                    : "No employees assigned for your review"}
                 </p>
               </div>
             )}

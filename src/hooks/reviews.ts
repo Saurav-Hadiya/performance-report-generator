@@ -80,10 +80,13 @@ export const useEmployeeReviewByCurrentUser = (
 };
 
 // Hook to fetch all reviews written by the current user
-export const useMyReviews = (options?: UseQueryOptions<any>) => {
+export const useMyReviews = (
+  searchQuery?: string,
+  options?: UseQueryOptions<any>
+) => {
     return useQuery({
-        queryKey: [queryKeys.myReviews],
-        queryFn: fetchMyReviews,
+        queryKey: [queryKeys.myReviews, searchQuery],
+        queryFn: () => fetchMyReviews(searchQuery),
         ...options,
     });
 };

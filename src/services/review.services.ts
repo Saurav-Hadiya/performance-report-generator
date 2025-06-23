@@ -56,8 +56,9 @@ export const fetchEmployeeReviewByCurrentUser = async (employeeId: string): Prom
 };
 
 // Fetch all reviews written by the current user
-export const fetchMyReviews = async (): Promise<any> => {
-  const response = await fetch('/api/reviews/my');
+export const fetchMyReviews = async (searchQuery?: string): Promise<any> => {
+  const queryParams = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : '';
+  const response = await fetch(`/api/reviews/my${queryParams}`);
   if (!response.ok) {
     throw new Error('Failed to fetch my reviews');
   }
