@@ -52,8 +52,37 @@ export async function GET(req: NextRequest) {
     
     // Apply search filter if provided
     if (searchQuery) {
-      // Using ilike for case-insensitive search
-      query = query.or(`name.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%`);
+      // Using ilike for case-insensitive search across multiple columns
+      query = query.or(`name.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+      
+      if (searchQuery) {
+        const { data: matchingDepts } = await supabase
+          .from('departments')
+          .select('id')
+          .eq('organization_id', orgData.id)
+          .ilike('name', `%${searchQuery}%`);
+        
+        if (matchingDepts && matchingDepts.length > 0) {
+          const departmentIds = matchingDepts.map(d => d.id);
+          
+          // new query that combines the original search with department filtering
+          query = supabase
+            .from('employees')
+            .select(`
+              id,
+              name,
+              role,
+              email,
+              department_id,
+              departments:department_id(
+                id,
+                name
+              )
+            `)
+            .eq('organization_id', orgData.id)
+            .or(`name.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,department_id.in.(${departmentIds.join(',')})`);
+        }
+      }
     }
     
     // Apply department filter if provided and not 'all'

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -15,7 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateEmployee, useDeleteEmployee, useEmployees, useInviteEmployee, useResendInvitation, useOrganization } from "@/hooks";
 import { Building, CheckCircle2, Loader2, Mail, Search, Table, Trash2, User, UserPlus, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,16 +24,34 @@ import queryKeys from "@/constants/QueryKeys";
 
 export default function EmployeesPage() {
   const queryClient = useQueryClient();
-  
+
+  // Search state with debouncing
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search query to avoid excessive API calls
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  // Use server-side filtering
   const {
     data: employees = [],
     isLoading: isLoadingEmployees,
     error
-  } = useEmployees();
+  } = useEmployees({
+    search: debouncedSearch
+  });
 
-  const { 
+  const {
     data: organization,
-    isLoading: isLoadingOrganization 
+    isLoading: isLoadingOrganization
   } = useOrganization();
 
   const { mutate: createEmployee, isPending: isCreating } = useCreateEmployee();
@@ -41,7 +59,6 @@ export default function EmployeesPage() {
   const { mutate: inviteEmployee, isPending: isInviting } = useInviteEmployee();
   const { mutate: resendInvitation, isPending: isResending } = useResendInvitation();
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("directory");
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
   const [resendingEmployeeId, setResendingEmployeeId] = useState<string | null>(null);
@@ -54,70 +71,6 @@ export default function EmployeesPage() {
     department: "",
     assignedReviewees: [] as string[],
   });
-
-  // Filter employees based on search
-  const filteredEmployees = employees.filter(employee => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      employee.name.toLowerCase().includes(searchLower) ||
-      (employee.email && employee.email.toLowerCase().includes(searchLower)) ||
-      employee.role.toLowerCase().includes(searchLower) ||
-      (employee.department && employee.department.toLowerCase().includes(searchLower))
-    );
-  });
-
-  const handleAddEmployee = () => {
-    // Basic validation
-    if (!newEmployee.name || !newEmployee.email || !newEmployee.role || !newEmployee.department) {
-      toast("Please fill in all fields");
-      return;
-    }
-
-    // Check for email format
-    if (!isValidEmail(newEmployee.email)) {
-      toast("Please enter a valid email address");
-      return;
-    }
-
-    // create the employee record
-    createEmployee({
-      name: newEmployee.name,
-      email: newEmployee.email,
-      role: newEmployee.role,
-      department: newEmployee.department,
-      assignedReviewees: newEmployee.assignedReviewees
-    }, {
-      onSuccess: (newEmployeeData) => {
-        // Always send invitation email
-        inviteEmployee({
-          email: newEmployee.email,
-          name: newEmployee.name,
-          role: newEmployee.role,
-          department_id: newEmployee.department
-        }, {
-          onSuccess: (response) => {
-            toast.success(response.message || "Employee added and invitation sent");
-          },
-          onError: (error) => {
-            toast.error(`Employee added but failed to send invitation: ${error.message}`);
-          }
-        });
-
-        // Reset form and switch to directory tab
-        setNewEmployee({
-          name: "",
-          email: "",
-          role: "",
-          department: "",
-          assignedReviewees: [],
-        });
-        setActiveTab("directory");
-      },
-      onError: (error) => {
-        toast.error(`Failed to add employee: ${error.message}`);
-      }
-    });
-  };
 
   const handleRemoveEmployee = (id: string) => {
     if (confirm("Are you sure you want to remove this employee?")) {
@@ -209,7 +162,7 @@ export default function EmployeesPage() {
         </div>
 
         {/* Directory Tab */}
-        <TabsContent value="directory" className="mt-6">
+        <TabsContent value="directory">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -241,21 +194,21 @@ export default function EmployeesPage() {
                 </div>
               ) : (
                 <>
-                  {filteredEmployees.length > 0 ? (
+                  {employees.length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-2">
-                      {filteredEmployees.map((employee) => (
+                      {employees.map((employee) => (
                         <div
                           key={employee._id}
                           className="group relative border rounded-lg p-4 hover:shadow-md transition-all"
                         >
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-center gap-4">
                             <Avatar className="h-12 w-12">
                               <AvatarImage src={`https://avatar.vercel.sh/${employee._id}`} />
                               <AvatarFallback>{employee.name[0]}</AvatarFallback>
                             </Avatar>
                             <div>
                               <h3 className="font-medium">
-                                <Link 
+                                <Link
                                   href={`/organization/employees/${employee._id}`}
                                   className="hover:text-primary hover:underline"
                                 >
@@ -281,43 +234,41 @@ export default function EmployeesPage() {
                               </div>
                             </div>
                           </div>
-                          <div className="absolute top-2 right-2 flex gap-2">
-                            <Link href={`/organization/employees/${employee._id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-gray-400 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <User className="h-4 w-4" />
-                              </Button>
-                            </Link>
+
+                          {/* Actions */}
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             {employee.email && !employee.emailConfirmed && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleResendInvitation(employee._id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleResendInvitation(employee._id);
+                                }}
                                 disabled={resendingEmployeeId === employee._id}
-                                title="Resend invitation email to employee"
+                                title="Resend invitation email"
                               >
                                 {resendingEmployeeId === employee._id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Mail className="h-4 w-4" />
+                                  <Mail className="h-4 w-4 text-blue-600" />
                                 )}
                               </Button>
                             )}
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleRemoveEmployee(employee._id)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleRemoveEmployee(employee._id);
+                              }}
                               disabled={deletingEmployeeId === employee._id}
+                              title="Remove employee"
                             >
                               {deletingEmployeeId === employee._id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4 text-red-600" />
                               )}
                             </Button>
                           </div>
@@ -325,22 +276,31 @@ export default function EmployeesPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 border rounded-lg bg-gray-50 my-6">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
-                          <User className="h-6 w-6 text-gray-500" />
+                    <div className="text-center py-12 border rounded-lg bg-gray-50">
+                      {searchQuery ? (
+                        <div className="space-y-2">
+                          <Users className="h-12 w-12 mx-auto text-gray-400" />
+                          <p className="text-lg font-medium">No matching employees found</p>
+                          <p className="text-sm text-gray-500">
+                            Try adjusting your search query
+                          </p>
                         </div>
-                        <h3 className="font-medium">No employees found</h3>
-                        <p className="text-sm text-gray-500">Try a different search term or add new employees</p>
-                        <Button
-                          variant="outline"
-                          className="mt-2"
-                          onClick={() => setActiveTab("add")}
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add Employee
-                        </Button>
-                      </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Users className="h-12 w-12 mx-auto text-gray-400" />
+                          <p className="text-lg font-medium">No employees yet</p>
+                          <p className="text-sm text-gray-500">
+                            Add employees to your organization to get started
+                          </p>
+                          <Button
+                            onClick={() => setActiveTab("add")}
+                            className="mt-4"
+                          >
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Add Employee
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -350,116 +310,109 @@ export default function EmployeesPage() {
         </TabsContent>
 
         {/* Add Employee Tab */}
-        <TabsContent value="add" className="mt-6">
-          <Card>
+        <TabsContent value="add">
+          <Card className="w-full">
             <CardHeader>
               <CardTitle>Add New Employee</CardTitle>
-              <CardDescription>Enter employee details to add them to your organization</CardDescription>
+              <CardDescription>
+                Invite a new employee to join your organization
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                    <Input
-                      id="name"
-                      placeholder="John Doe"
-                      className="pl-8"
-                      value={newEmployee.name}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-                      disabled={isCreating || isInviting}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="john.doe@company.com"
-                      className="pl-8"
-                      value={newEmployee.email}
-                      onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                      disabled={isCreating || isInviting}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input
-                    id="role"
-                    placeholder="Software Engineer"
-                    value={newEmployee.role}
-                    onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })}
-                    disabled={isCreating || isInviting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="department">Department</Label>
-                    <Link 
-                      href="/dashboard/organization?tab=departments" 
-                      className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      Manage Departments
-                    </Link>
-                  </div>
-                  <div className="relative">
-                    <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 z-10" />
-                    {isLoadingOrganization ? (
-                      <div className="h-10 w-full flex items-center pl-10 border rounded-md bg-gray-50">
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Loading departments...
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {/* Basic Info Section */}
+                <div>
+                  <h3 className="text-base font-medium mb-4">Basic Information</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 z-10" />
+                        <Input
+                          id="name"
+                          placeholder="John Doe"
+                          disabled={isCreating || isInviting}
+                          className="pl-8"
+                          value={newEmployee.name}
+                          onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                        />
                       </div>
-                    ) : (
-                      <Select
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 z-10" />
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="john@example.com"
+                          disabled={isCreating || isInviting}
+                          className="pl-8"
+                          value={newEmployee.email}
+                          onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Input
+                        id="role"
+                        placeholder="Software Engineer"
                         disabled={isCreating || isInviting}
-                        value={newEmployee.department}
-                        onValueChange={(value) => setNewEmployee({ ...newEmployee, department: value })}
-                      >
-                        <SelectTrigger className="pl-8">
-                          <SelectValue placeholder="Select a department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments.length > 0 ? (
-                            departments.map((dept) => (
-                              <SelectItem key={dept} value={dept}>
-                                {dept}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="p-2 text-center text-sm text-gray-500">
-                              No departments available. Please add departments in Organization Settings.
-                            </div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
+                        value={newEmployee.role}
+                        onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Department</Label>
+                      <div className="relative">
+                        <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 z-10" />
+                        {isLoadingOrganization ? (
+                          <div className="h-10 w-full flex items-center pl-10 border rounded-md bg-gray-50">
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Loading departments...
+                          </div>
+                        ) : (
+                          <Select
+                            disabled={isCreating || isInviting}
+                            value={newEmployee.department}
+                            onValueChange={(value) => setNewEmployee({ ...newEmployee, department: value })}
+                          >
+                            <SelectTrigger className="pl-8">
+                              <SelectValue placeholder="Select a department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments.length > 0 ? (
+                                departments.map((dept) => (
+                                  <SelectItem key={dept} value={dept}>
+                                    {dept}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <div className="p-2 text-center text-sm text-gray-500">
+                                  No departments available. Please add departments in Organization Settings.
+                                </div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="md:col-span-2">
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500">
-                      The employee will be added to the database and an invitation email will be sent automatically 
-                      with instructions to create their password and access the system.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="assignedReviewees">Assign Employees to Review (Optional)</Label>
+                {/* Assign Reviewees Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-medium">Assign Employees to Review</h3>
                     <span className="text-xs text-gray-500">
-                      Select employees this person can review
+                      {newEmployee.assignedReviewees.length} Selected
                     </span>
                   </div>
+
                   <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
                     {isLoadingEmployees ? (
                       <div className="flex items-center justify-center py-4">
@@ -511,28 +464,66 @@ export default function EmployeesPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between gap-4 border-t pt-6 mt-4">
+            <CardFooter className="flex justify-between border-t p-6">
+              <Button variant="outline" onClick={() => setActiveTab("directory")}>Cancel</Button>
               <Button
-                variant="outline"
-                onClick={() => setActiveTab("directory")}
-                disabled={isCreating || isInviting}
+                onClick={() => {
+                  // Validate required fields
+                  if (!newEmployee.name || !newEmployee.email || !newEmployee.role) {
+                    toast.error("Name, email, and role are required fields");
+                    return;
+                  }
+
+                  // Validate email format
+                  if (!isValidEmail(newEmployee.email)) {
+                    toast.error("Please enter a valid email address");
+                    return;
+                  }
+
+                  // Send invitation
+                  inviteEmployee({
+                    name: newEmployee.name,
+                    email: newEmployee.email,
+                    role: newEmployee.role,
+                    department_id: newEmployee.department || undefined
+                  }, {
+                    onSuccess: () => {
+                      toast.success("Invitation sent successfully", {
+                        description: `An invitation email has been sent to ${newEmployee.email}`
+                      });
+
+                      // Reset form
+                      setNewEmployee({
+                        name: "",
+                        email: "",
+                        role: "",
+                        department: "",
+                        assignedReviewees: []
+                      });
+
+                      // Switch to directory tab
+                      setActiveTab("directory");
+
+                      // Refetch employees to show the new one
+                      queryClient.invalidateQueries({ queryKey: [queryKeys.employees] });
+                    },
+                    onError: (error) => {
+                      toast.error(`Failed to send invitation: ${error.message}`);
+                    }
+                  });
+                }}
+                disabled={isCreating || isInviting || !newEmployee.name || !newEmployee.email || !newEmployee.role}
+                className="min-w-[140px]"
               >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddEmployee}
-                className="gap-2"
-                disabled={isCreating || isInviting || isLoadingOrganization || departments.length === 0}
-              >
-                {isCreating || isInviting ? (
+                {isInviting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {isCreating ? 'Adding Employee...' : 'Sending Invite...'}
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    Add Employee & Send Invite
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Invitation
                   </>
                 )}
               </Button>
