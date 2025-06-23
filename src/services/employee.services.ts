@@ -1,8 +1,23 @@
 import { Employee } from '@/types';
 
-// Fetch all employees
-export const fetchEmployees = async (): Promise<Employee[]> => {
-    const response = await fetch('/api/employees');
+// Fetch all employees with optional filtering
+export const fetchEmployees = async (filters?: {
+  search?: string;
+  department?: string;
+}): Promise<Employee[]> => {
+    const searchParams = new URLSearchParams();
+    
+    if (filters?.search) {
+        searchParams.append('search', filters.search);
+    }
+    
+    if (filters?.department) {
+        searchParams.append('department', filters.department);
+    }
+    
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    const response = await fetch(`/api/employees${queryString}`);
+    
     if (!response.ok) {
         throw new Error('Failed to fetch employees');
     }

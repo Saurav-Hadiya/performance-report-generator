@@ -8,8 +8,9 @@ import {
   Report
 } from "@/components/organization/ReportsComponents";
 import { useEmployees, useGenerateReport, useSpecificReport } from "@/hooks";
+import { useDepartments } from "@/hooks";
 import { Employee } from "@/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 // Generate formatted months for the last 12 months
@@ -38,12 +39,43 @@ const getMonthOptions = (): MonthOption[] => {
 const monthOptions = getMonthOptions();
 
 export default function ReportsPage() {
-  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
-
+  // State for search and filters with debouncing
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>(monthOptions[0].value);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  
+  // Debounce search query to avoid too many API calls
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  // Fetch all departments for the organization
+  const { 
+    data: departmentData = [], 
+    isLoading: departmentsLoading 
+  } = useDepartments();
+  
+  // Create a list of department names for the filter dropdown
+  const allDepartments = departmentData.map(dept => dept.name);
+
+  // Use server-side filtering with the enhanced hook
+  const { 
+    data: employees = [], 
+    isLoading: employeesLoading 
+  } = useEmployees(
+    {
+      search: debouncedSearch,
+      department: departmentFilter !== "all" ? departmentFilter : undefined
+    }
+  );
 
   // Fetch the specific report for the selected employee and month
   const {
@@ -91,20 +123,6 @@ export default function ReportsPage() {
     });
   };
 
-  // Filter employees based on search query and department
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.role.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDepartment = departmentFilter === "all" ||
-      (employee.department === departmentFilter);
-    return matchesSearch && matchesDepartment;
-  });
-
-  // Get unique departments for filtering
-  const departments = [...new Set(employees
-    .filter(e => e.department)
-    .map(e => e.department))] as string[];
-
   // Convert PerformanceReport to Report type if it exists
   const reportData: Report | undefined = selectedMonthReport ? {
     _id: selectedMonthReport._id ?? '',
@@ -131,8 +149,8 @@ export default function ReportsPage() {
         setDepartmentFilter={setDepartmentFilter}
         selectedMonth={selectedMonth}
         setSelectedMonth={setSelectedMonth}
-        departments={departments}
-        employeesLoading={employeesLoading}
+        departments={allDepartments}
+        employeesLoading={employeesLoading || departmentsLoading}
         monthOptions={monthOptions}
       />
 
@@ -140,7 +158,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Employee List */}
         <EmployeeList
-          filteredEmployees={filteredEmployees}
+          filteredEmployees={employees}
           employeesLoading={employeesLoading}
           selectedEmployee={selectedEmployee}
           setSelectedEmployee={setSelectedEmployee}

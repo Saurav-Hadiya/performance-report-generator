@@ -5,6 +5,10 @@ import supabaseAdmin from '@/lib/supabase/admin';
 // GET all employees
 export async function GET(req: NextRequest) {
   try {
+    // Get search query and department filter from URL params
+    const searchQuery = req.nextUrl.searchParams.get('search') || '';
+    const departmentFilter = req.nextUrl.searchParams.get('department') || '';
+    
     const supabase = await createClient();
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -30,8 +34,8 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // Get all employees for this organization with their departments
-    const { data: employees, error: empError } = await supabase
+    // Build the query for employees
+    let query = supabase
       .from('employees')
       .select(`
         id,
@@ -44,8 +48,33 @@ export async function GET(req: NextRequest) {
           name
         )
       `)
-      .eq('organization_id', orgData.id)
-      .order('name');
+      .eq('organization_id', orgData.id);
+    
+    // Apply search filter if provided
+    if (searchQuery) {
+      // Using ilike for case-insensitive search
+      query = query.or(`name.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%`);
+    }
+    
+    // Apply department filter if provided and not 'all'
+    if (departmentFilter && departmentFilter !== 'all') {
+      // Get the department_id for the specified department name
+      const { data: deptData, error: deptError } = await supabase
+        .from('departments')
+        .select('id')
+        .eq('name', departmentFilter)
+        .eq('organization_id', orgData.id)
+        .single();
+      
+      if (!deptError && deptData) {
+        query = query.eq('department_id', deptData.id);
+      }
+    }
+    
+    // Order by name for consistent results
+    query = query.order('name');
+    
+    const { data: employees, error: empError } = await query;
     
     if (empError) {
       console.error('Error fetching employees:', empError);

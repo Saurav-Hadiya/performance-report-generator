@@ -57,4 +57,13 @@ export const checkDepartmentInUse = async (departmentName: string): Promise<{ in
         throw new Error('Failed to check department usage');
     }
     return response.json();
+};
+
+// Fetch all departments
+export const fetchDepartments = async (): Promise<{id: string, name: string}[]> => {
+    const response = await fetch('/api/organization/departments');
+    if (!response.ok) {
+        throw new Error('Failed to fetch departments');
+    }
+    return response.json();
 }; 

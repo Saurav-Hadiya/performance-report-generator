@@ -19,10 +19,16 @@ import {
 } from '@tanstack/react-query';
 
 // Employee hooks
-export const useEmployees = (options?: UseQueryOptions<Employee[]>) => {
+export const useEmployees = (
+    filters?: {
+        search?: string;
+        department?: string;
+    },
+    options?: UseQueryOptions<Employee[]>
+) => {
     return useQuery({
-        queryKey: [queryKeys.employees],
-        queryFn: fetchEmployees,
+        queryKey: [queryKeys.employees, filters?.search, filters?.department],
+        queryFn: () => fetchEmployees(filters),
         ...options,
     });
 };
