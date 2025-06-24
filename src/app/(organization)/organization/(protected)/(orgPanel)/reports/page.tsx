@@ -80,7 +80,8 @@ export default function ReportsPage() {
   // Fetch the specific report for the selected employee and month
   const {
     data: selectedMonthReport,
-    isLoading: reportsLoading
+    isLoading: reportsLoading,
+    refetch: refetchReport
   } = useSpecificReport(
     selectedEmployee?._id ?? '',
     selectedMonth,
@@ -92,7 +93,8 @@ export default function ReportsPage() {
   // Generate report mutation
   const {
     mutate: generateReport,
-    isPending: isGenerating
+    isPending: isGenerating,
+    error: generateError
   } = useGenerateReport({
     onSuccess: (data) => {
       if (data.isRegenerated) {
@@ -104,23 +106,40 @@ export default function ReportsPage() {
           description: data.message || 'New report has been created successfully.',
         });
       }
+      
+      // Explicitly refetch the current report to ensure UI updates
+      if (selectedEmployee && selectedMonth) {
+        refetchReport();
+      }
     },
     onError: (error) => {
-      toast.error(error.message);
+      console.error('Report generation error:', error);
+      toast.error(error.message || 'Failed to generate report');
     }
   });
 
   // Handle generate report
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!selectedEmployee) {
       toast.error("Please select an employee");
       return;
     }
 
-    generateReport({
-      employeeId: selectedEmployee._id,
-      month: selectedMonth
-    });
+    // Prevent multiple concurrent generations for same employee/month
+    if (isGenerating) {
+      toast.warning("Report generation is already in progress");
+      return;
+    }
+
+    try {
+      generateReport({
+        employeeId: selectedEmployee._id,
+        month: selectedMonth
+      });
+    } catch (error) {
+      console.error('Error initiating report generation:', error);
+      toast.error('Failed to initiate report generation');
+    }
   };
 
   // Convert PerformanceReport to Report type if it exists

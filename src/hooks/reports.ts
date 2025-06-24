@@ -56,13 +56,24 @@ export const useGenerateReport = (
     return useMutation({
         mutationFn: generateEmployeeReport,
         onSuccess: (newReport) => {
+            // Invalidate the employee's reports list
             queryClient.invalidateQueries({ 
                 queryKey: [queryKeys.reportsByEmployee(newReport.employeeId)]
             });
+            
+            // Invalidate the specific report query to force refetch
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.reportByEmployeeAndMonth(newReport.employeeId, newReport.month)
+            });
+            
+            // Also set the query data directly for immediate UI update
             queryClient.setQueryData(
                 queryKeys.reportByEmployeeAndMonth(newReport.employeeId, newReport.month),
                 newReport
             );
+            
+            // Invalidate best employees data as well since reports affect rankings
+            queryClient.invalidateQueries({ queryKey: [queryKeys.bestEmployees] });
         },
         ...options,
     });
@@ -95,9 +106,28 @@ export const useGenerateMissingReports = (
 
     return useMutation({
         mutationFn: generateMissingReports,
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
+            // Invalidate the employee's reports list
+            queryClient.invalidateQueries({ 
+                queryKey: [queryKeys.reportsByEmployee(variables.employeeId)]
+            });
+            
+            // Invalidate specific report queries for each generated report
+            data.generatedReports.forEach(report => {
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.reportByEmployeeAndMonth(report.employeeId, report.month)
+                });
+                
+                // Set the query data directly for immediate UI update
+                queryClient.setQueryData(
+                    queryKeys.reportByEmployeeAndMonth(report.employeeId, report.month),
+                    report
+                );
+            });
+            
             // Invalidate best employee query after generating missing reports
             queryClient.invalidateQueries({ queryKey: [queryKeys.bestEmployees] });
+            
             // Also invalidate all reports queries
             queryClient.invalidateQueries({ queryKey: [queryKeys.reports] });
         },
