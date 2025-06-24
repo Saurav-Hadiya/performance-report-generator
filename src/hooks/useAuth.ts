@@ -15,7 +15,23 @@ export const useAuth = () => {
     onSuccess: (data) => {
       if (data.user) {
         toast.success(data.message ?? 'Successfully signed in');
-        router.push('/organization/dashboard');
+        
+        // For organization users, check if details are completed 
+        if (data.user.user_metadata?.role === 'organization') {
+          if (data.detailsCompleted === false) {
+            // Redirect to details page if not completed
+            router.replace('/organization/details');
+          } else {
+            // Otherwise go to dashboard 
+            router.replace('/organization/dashboard');
+          }
+        } else {
+          // For non-organization users (employees etc.)
+          router.replace('/');
+        }
+      } else if (data.emailVerificationRequired) {
+        // Handle unverified email during sign in
+        toast.error(data.error);
       } else if (data.error) {
         toast.error(data.error);
       }
@@ -27,7 +43,10 @@ export const useAuth = () => {
   
   const signUp = useSignUp({
     onSuccess: (data) => {
-      if (data.user) {
+      if (data.needsEmailConfirmation) {
+        toast.success('Verification email sent. Please check your inbox to confirm your account before signing in.');
+      } else if (data.user) {
+        // Normal flow without email verification
         toast.success(data.message ?? 'Account created successfully');
         router.push('/organization/details');
       } else if (data.error) {
@@ -43,7 +62,7 @@ export const useAuth = () => {
     onSuccess: (data) => {
       if (data.message) {
         toast.success(data.message);
-        router.push('/organization/signin');
+        router.replace('/organization/signin');
       } else if (data.error) {
         toast.error(data.error);
       }

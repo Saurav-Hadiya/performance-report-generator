@@ -30,16 +30,25 @@ export const useSignIn = (
   options?: UseMutationOptions<AuthResponse, Error, SignInCredentials>
 ) => {
   const queryClient = useQueryClient();
+  
+  // Extract onSuccess and onError to avoid duplicating when spreading options
+  const { onSuccess: userOnSuccess, onError: userOnError, ...restOptions } = options || {};
 
   return useMutation({
     mutationFn: signInWithEmailPassword,
-    onSuccess: (data) => {
+    onSuccess: (data, variables, context) => {
       if (data.user) {
         queryClient.setQueryData([queryKeys.user], { user: data.user });
         queryClient.invalidateQueries({ queryKey: [queryKeys.user] });
       }
+      
+      // Call the provided onSuccess handler if it exists
+      if (userOnSuccess) {
+        userOnSuccess(data, variables, context);
+      }
     },
-    ...options,
+    onError: userOnError,
+    ...restOptions,
   });
 };
 
@@ -48,16 +57,26 @@ export const useSignUp = (
   options?: UseMutationOptions<AuthResponse, Error, SignUpData>
 ) => {
   const queryClient = useQueryClient();
+  
+  // Extract onSuccess and onError to avoid duplicating when spreading options
+  const { onSuccess: userOnSuccess, onError: userOnError, ...restOptions } = options || {};
 
   return useMutation({
     mutationFn: signUpWithEmailPassword,
-    onSuccess: (data) => {
-      if (data.user) {
+    onSuccess: (data, variables, context) => {
+      // Only set user data if user exists and doesn't need confirmation
+      if (data.user && !data.needsEmailConfirmation) {
         queryClient.setQueryData([queryKeys.user], { user: data.user });
         queryClient.invalidateQueries({ queryKey: [queryKeys.user] });
       }
+      
+      // Call the provided onSuccess handler if it exists
+      if (userOnSuccess) {
+        userOnSuccess(data, variables, context);
+      }
     },
-    ...options,
+    onError: userOnError,
+    ...restOptions,
   });
 };
 

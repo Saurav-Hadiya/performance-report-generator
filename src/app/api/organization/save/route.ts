@@ -16,24 +16,59 @@ export async function POST(request: NextRequest) {
     if (userError || !userData.user) {
         return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    // Insert organization details into the organization table
-    const { data, error } = await supabase
+    
+    // First check if organization already exists for this user
+    const { data: existingOrg } = await supabase
         .from('organization')
-        .insert({
-            name,
-            email: userData.user.email, // email of the authenticated user
-            address,
-            phone,
-            user_id: userData.user.id // Links to the authenticated user
-        })
-        .select()
-        .single();
+        .select('id')
+        .eq('user_id', userData.user.id)
+        .maybeSingle();
+    
+    let result;
+    
+    if (existingOrg) {
+        // Update existing organization
+        const { data, error } = await supabase
+            .from('organization')
+            .update({
+                name,
+                address,
+                phone
+            })
+            .eq('id', existingOrg.id)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('Error updating organization details:', error);
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        
+        result = data;
+    } else {
+        // Insert new organization details
+        const { data, error } = await supabase
+            .from('organization')
+            .insert({
+                name,
+                email: userData.user.email,
+                address,
+                phone,
+                user_id: userData.user.id
+            })
+            .select()
+            .single();
 
-    if (error) {
-        console.error('Error saving organization details:', error);
-
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        if (error) {
+            console.error('Error saving organization details:', error);
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        
+        result = data;
     }
 
-    return NextResponse.json({ message: 'Organization details saved successfully', organization: data }, { status: 200 });
+    return NextResponse.json({ 
+        message: 'Organization details saved successfully', 
+        organization: result 
+    }, { status: 200 });
 } 

@@ -1,8 +1,10 @@
 'use client'
 
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CheckCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -15,6 +17,7 @@ interface OrganizationDetailsFormData {
 
 export default function OrganizationDetailsPage() {
     const router = useRouter()
+
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formData, setFormData] = useState<OrganizationDetailsFormData>({
         name: '',
@@ -49,7 +52,9 @@ export default function OrganizationDetailsPage() {
             }
 
             toast.success('Organization details saved successfully')
-            router.push('organization/dashboard') // Redirect to dashboard after saving details
+            
+            // Use replace instead of push to avoid back button issues
+            router.replace('/organization/dashboard')
         } catch (error: any) {
             toast.error(error.message ?? 'Failed to save organization details')
         } finally {
@@ -65,9 +70,18 @@ export default function OrganizationDetailsPage() {
                         Complete Your Organization Profile
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
-                        Please provide your organization details
+                        Please provide your organization details to continue
                     </p>
                 </div>
+
+
+                <Alert className="bg-green-50 border-green-200 my-4">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <AlertTitle className="text-green-800">
+                        Please complete your profile to access the organization portal.
+                    </AlertTitle>
+                </Alert>
+
 
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">

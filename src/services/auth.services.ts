@@ -18,6 +18,10 @@ export interface AuthResponse {
   user: User | null;
   message?: string;
   error?: string;
+  needsEmailConfirmation?: boolean;
+  emailVerificationRequired?: boolean;
+  email?: string;
+  detailsCompleted?: boolean;
 }
 
 // Sign in with email and password
@@ -34,12 +38,18 @@ export const signInWithEmailPassword = async (credentials: SignInCredentials): P
     const data = await response.json();
     
     if (!response.ok) {
-      return { user: null, error: data.error || 'Failed to sign in' };
+      return { 
+        user: null, 
+        error: data.error || 'Failed to sign in',
+        emailVerificationRequired: data.emailVerificationRequired,
+        email: data.email
+      };
     }
     
     return { 
       user: data.user,
-      message: data.message
+      message: data.message,
+      detailsCompleted: data.detailsCompleted
     };
   } catch (error: any) {
     return { user: null, error: error.message || 'Failed to sign in' };
@@ -65,7 +75,9 @@ export const signUpWithEmailPassword = async (signUpData: SignUpData): Promise<A
     
     return { 
       user: data.user,
-      message: data.message
+      message: data.message,
+      needsEmailConfirmation: data.needsEmailConfirmation,
+      email: signUpData.email
     };
   } catch (error: any) {
     return { user: null, error: error.message || 'Failed to sign up' };

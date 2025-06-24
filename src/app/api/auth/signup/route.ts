@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
         options: {
             data: { 
                 role: role ?? 'organization',
+                emailVerified: false,
             },
+            emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/organization/details`,
         },
     });
     
@@ -24,5 +26,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ message: 'signup successfully', user: data.user }, { status: 200 });
+    
+    return NextResponse.json({
+        message: 'Please check your email to confirm your account',
+        needsEmailConfirmation: true,
+        email: email,
+        user: data.user // Include user data for consistency
+    }, { status: 200 });
 }
