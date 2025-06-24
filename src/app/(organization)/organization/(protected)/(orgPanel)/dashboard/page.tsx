@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, BadgeCheck, Users, Star, TrendingUp, Flag, Activity, Trophy, FileSpreadsheet, AlertTriangle, UserPlus } from "lucide-react";
+import { AlertCircle, BadgeCheck, Users, Star, TrendingUp, Flag, Activity, Trophy, FileSpreadsheet, AlertTriangle, UserPlus, Loader2 } from "lucide-react";
 import { useBestEmployees, useGenerateMissingReports } from "@/hooks/reports";
 import { useEmployees } from "@/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -29,27 +29,7 @@ export default function Dashboard() {
     enabled: employees.length > 0 // Only fetch when there are employees
   });
 
-  const generateMissingReportsMutation = useGenerateMissingReports({
-    onSuccess: (data) => {
-      setIsGenerating(false);
-      if (data.success) {
-        toast.success("Reports generated successfully", {
-          description: `Generated ${data.generatedReports.length} reports for the employee.`,
-        });
-        refetchBestEmployees();
-      } else {
-        toast.error("Some reports failed to generate", {
-          description: `Generated ${data.generatedReports.length} reports, but ${data.failedMonths.length} failed.`,
-        });
-      }
-    },
-    onError: (error) => {
-      setIsGenerating(false);
-      toast.error("Failed to generate reports", {
-        description: error.message,
-      });
-    }
-  });
+  const generateMissingReportsMutation = useGenerateMissingReports();
 
   // Get all missing reports from all employees
   const getAllMissingReports = () => {
@@ -67,45 +47,48 @@ export default function Dashboard() {
   const missingReports = getAllMissingReports();
   const hasMissingReports = bestEmployeeData?.hasMissingReports || false;
 
-  const handleGenerateAllMissingReports = () => {
+  const handleGenerateAllMissingReports = async () => {
     if (missingReports.length === 0) return;
 
     setIsGenerating(true);
 
-    // Process each employee's missing reports sequentially
-    const processNextEmployee = (index = 0) => {
-      if (index >= missingReports.length) {
-        setIsGenerating(false);
-        refetchBestEmployees();
-        toast.success("All missing reports generated successfully");
-        return;
-      }
+    // Show a loading toast
+    const loadingToastId = toast.loading("Generating all missing reports...", { duration: Infinity });
 
-      const { employeeId, employeeName, months } = missingReports[index];
+    let successCount = 0;
+    let errorCount = 0;
 
-      toast.info(`Generating reports for ${employeeName}...`, {
-        duration: 2000,
-      });
+    // Process employees one by one
+    for (let i = 0; i < missingReports.length; i++) {
+      const { employeeId, months } = missingReports[i];
 
-      generateMissingReportsMutation.mutate(
-        { employeeId, months },
-        {
-          onSuccess: () => {
-            // Process next employee
-            processNextEmployee(index + 1);
-          },
-          onError: (error) => {
-            toast.error(`Failed to generate reports for ${employeeName}`, {
-              description: error.message,
-            });
-            // Continue with next employee despite error
-            processNextEmployee(index + 1);
-          }
+      try {
+        // Generate reports for current employee
+        const result = await generateMissingReportsMutation.mutateAsync({ employeeId, months });
+
+        if (result.success) {
+          successCount += result.generatedReports.length;
+        } else {
+          successCount += result.generatedReports.length;
+          errorCount += result.failedMonths.length;
         }
-      );
-    };
+      } catch (error) {
+        errorCount += months.length;
+      }
+    }
 
-    processNextEmployee();
+    // Cleanup and show final notification
+    toast.dismiss(loadingToastId);
+    setIsGenerating(false);
+
+    if (errorCount === 0) {
+      toast.success("All reports generated successfully");
+    } else {
+      toast.warning(`Generated ${successCount} reports, but ${errorCount} reports failed`);
+    }
+
+    // Refresh data
+    refetchBestEmployees();
   };
 
   // Get the top employees
@@ -215,7 +198,14 @@ export default function Dashboard() {
                 disabled={isGenerating}
                 onClick={handleGenerateAllMissingReports}
               >
-                {isGenerating ? "Generating..." : "Generate All Missing Reports"}
+                {isGenerating ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </span>
+                ) : (
+                  "Generate All Missing Reports"
+                )}
               </Button>
             </div>
             <CardDescription>
@@ -312,15 +302,15 @@ export default function Dashboard() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  
+
                   <div className="grid grid-cols-1 gap-4">
                     {topEmployees.map((employee, index) => (
                       <div key={index} className="flex flex-col md:flex-row items-center gap-6 p-4 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200">
                         {/* <div className="relative"> */}
-                          <Avatar className="h-20 w-20 border-4 border-yellow-500 shadow-lg">
-                            <AvatarImage src={`https://avatar.vercel.sh/${employee.employee.id}`} />
-                            <AvatarFallback>{employee.employee.name[0]}</AvatarFallback>
-                          </Avatar>
+                        <Avatar className="h-20 w-20 border-4 border-yellow-500 shadow-lg">
+                          <AvatarImage src={`https://avatar.vercel.sh/${employee.employee.id}`} />
+                          <AvatarFallback>{employee.employee.name[0]}</AvatarFallback>
+                        </Avatar>
 
                         <div className="flex-1 text-center md:text-left">
                           <h3 className="text-xl font-bold">{employee.employee.name}</h3>
@@ -372,12 +362,12 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {bestEmployeeData.bestEmployeesByDepartment.map((deptData, index) => (
                     <div key={index} className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                            <Users className="h-4 w-4" />
-                          </div>
-                          <h3 className="font-semibold text-lg">{deptData.department.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                          <Users className="h-4 w-4" />
                         </div>
+                        <h3 className="font-semibold text-lg">{deptData.department.name}</h3>
+                      </div>
 
                       <div className="space-y-3">
                         {deptData.bestEmployees.map((empData, empIndex) => (
