@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateEmployee, useDeleteEmployee, useEmployees, useInviteEmployee, useResendInvitation, useOrganization } from "@/hooks";
-import { Building, CheckCircle2, Loader2, Mail, Search, Table, Trash2, User, UserPlus, Users } from "lucide-react";
+import { Building, Loader2, Mail, Search, Table, Trash2, User, UserPlus, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -480,37 +480,57 @@ export default function EmployeesPage() {
                     return;
                   }
 
-                  // Send invitation
-                  inviteEmployee({
-                    name: newEmployee.name,
-                    email: newEmployee.email,
-                    role: newEmployee.role,
-                    department_id: newEmployee.department || undefined
-                  }, {
-                    onSuccess: () => {
-                      toast.success("Invitation sent successfully", {
-                        description: `An invitation email has been sent to ${newEmployee.email}`
-                      });
-
-                      // Reset form
-                      setNewEmployee({
-                        name: "",
-                        email: "",
-                        role: "",
-                        department: "",
-                        assignedReviewees: []
-                      });
-
-                      // Switch to directory tab
-                      setActiveTab("directory");
-
-                      // Refetch employees to show the new one
-                      queryClient.invalidateQueries({ queryKey: [queryKeys.employees] });
+                  // Step 1: Create the employee
+                  createEmployee(
+                    {
+                      name: newEmployee.name,
+                      email: newEmployee.email,
+                      role: newEmployee.role,
+                      department: newEmployee.department || undefined,
+                      assignedReviewees: newEmployee.assignedReviewees,
                     },
-                    onError: (error) => {
-                      toast.error(`Failed to send invitation: ${error.message}`);
+                    {
+                      onSuccess: (createdEmployee) => {
+                        // Step 2: Send invitation
+                        inviteEmployee(
+                          {
+                            name: createdEmployee.name,
+                            email: createdEmployee.email!,
+                            role: createdEmployee.role,
+                            department_id: createdEmployee.department,
+                          },
+                          {
+                            onSuccess: () => {
+                              toast.success("Invitation sent successfully", {
+                                description: `An invitation email has been sent to ${createdEmployee.email}`,
+                              });
+
+                              // Reset form
+                              setNewEmployee({
+                                name: "",
+                                email: "",
+                                role: "",
+                                department: "",
+                                assignedReviewees: [],
+                              });
+
+                              // Switch to directory tab
+                              setActiveTab("directory");
+
+                              // Refetch employees to show the new one
+                              queryClient.invalidateQueries({ queryKey: [queryKeys.employees] });
+                            },
+                            onError: (error) => {
+                              toast.error(`Failed to send invitation: ${error.message}`);
+                            },
+                          }
+                        );
+                      },
+                      onError: (error) => {
+                        toast.error(`Failed to create employee: ${error.message}`);
+                      },
                     }
-                  });
+                  );
                 }}
                 disabled={isCreating || isInviting || !newEmployee.name || !newEmployee.email || !newEmployee.role}
                 className="min-w-[140px]"
