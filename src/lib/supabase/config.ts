@@ -1,0 +1,1 @@
+export const SUPABASE_INVITE_EXPIRATION_TIME = 24; // 24 hours

@@ -19,6 +19,7 @@ const queryKeys = {
     // Auth related query keys
     auth: 'auth',
     user: 'user',
+    validateInvitation: 'validateInvitation',
 };
 
 export default queryKeys;

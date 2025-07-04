@@ -8,6 +8,7 @@ import {
     inviteEmployee,
     resendInvitation,
     updateEmployee,
+    validateInvitation,
 } from '@/services/employee.services';
 import { Employee } from '@/types';
 import {
@@ -154,6 +155,23 @@ export const useDeleteEmployee = (
             );
             queryClient.removeQueries({ queryKey: queryKeys.employee(id) });
         },
+        ...options,
+    });
+};
+
+// New hook for validating invitations
+export const useValidateInvitation = (
+    email: string,
+    options?: Omit<UseQueryOptions<{
+        success: boolean;
+        message: string;
+        data?: { valid: boolean };
+        error?: string;
+    }, Error>, 'queryKey' | 'queryFn'>
+) => {
+    return useQuery({
+        queryKey: [queryKeys.validateInvitation, email],
+        queryFn: () => validateInvitation(email),
         ...options,
     });
 };

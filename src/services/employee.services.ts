@@ -124,3 +124,40 @@ export const deleteEmployee = async (id: string): Promise<{ message: string }> =
     }
     return response.json();
 };
+
+// Validate employee invitation
+export const validateInvitation = async (email: string): Promise<{
+    success: boolean;
+    message: string;
+    data?: { valid: boolean };
+    error?: string;
+}> => {
+    const response = await fetch('/api/employees/validate-invite', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+    });
+    
+    const responseData = await response.json();
+    
+    // If the response is not in the standardized format, convert it
+    if (responseData.success === undefined) {
+        if (!response.ok) {
+            return {
+                success: false,
+                message: responseData.error || 'Failed to validate invitation',
+                error: 'UNKNOWN_ERROR'
+            };
+        } else {
+            return {
+                success: true,
+                message: responseData.message || 'Invitation is valid',
+                data: { valid: responseData.valid || false }
+            };
+        }
+    }
+    
+    return responseData;
+};
