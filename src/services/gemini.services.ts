@@ -1,22 +1,36 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 // Initialize the Google Generative AI with the API key
 const getGeminiAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  
+  const apiKey = process.env.GEMINI_API_KEY
+
+  if (!apiKey) {
+    throw new Error(
+      'GEMINI_API_KEY is not defined in the environment variables'
+    )
+  }
+
+  return new GoogleGenerativeAI(apiKey)
+}
+
+// Initialize the Google Generative AI with the API key
+const getGoogleAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY
+
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not defined in the environment variables');
   }
-  
-  return new GoogleGenerativeAI(apiKey);
-};
+
+  return new GoogleGenAI({ apiKey })
+}
 
 export interface PerformanceReport {
-  ranking: number;
-  improvements: string[];
-  qualities: string[];
-  summary: string;
-  criterias: { [key: string]: number };
+  ranking: number
+  improvements: string[]
+  qualities: string[]
+  summary: string
+  criterias: { [key: string]: number }
 }
 
 /**
@@ -32,11 +46,9 @@ export const generatePerformanceReport = async (
   employeeRole: string
 ): Promise<PerformanceReport> => {
   try {
-    const genAI = getGeminiAI();
-    
-    // For Gemini 2.0 Flash model
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
+    const genAI = getGeminiAI()
+    const googleAI = getGoogleAI()
+
     const prompt = `
     You are an AI assistant tasked with analyzing performance feedback for ${employeeName}, who works as a ${employeeRole}.
     
@@ -88,39 +100,47 @@ export const generatePerformanceReport = async (
         "independentlyTaskSuccessRatio": number,
       }
     }
-    `;
-    
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    
+    `
+
+    // For Gemini 2.0 Flash model
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // const result = await model.generateContent(prompt)
+    const result = await googleAI.models.generateContent({
+      model: 'gemini-2.0-flash-lite-001',
+      contents: prompt,
+    })
+    const text = result.text ?? ''
+    // const response = result.response;
+    // const text = response.text()
+
     // Extract the JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      throw new Error('Failed to extract JSON from AI response');
+      throw new Error('Failed to extract JSON from AI response')
     }
-    
-    const jsonResponse = JSON.parse(jsonMatch[0]);
-    
+
+    const jsonResponse = JSON.parse(jsonMatch[0])
+
     // Validate the response structure
     if (
-      typeof jsonResponse.ranking !== 'number' || 
-      !Array.isArray(jsonResponse.improvements) || 
-      !Array.isArray(jsonResponse.qualities) || 
+      typeof jsonResponse.ranking !== 'number' ||
+      !Array.isArray(jsonResponse.improvements) ||
+      !Array.isArray(jsonResponse.qualities) ||
       typeof jsonResponse.summary !== 'string'
     ) {
-      throw new Error('AI response does not match the expected format');
+      throw new Error('AI response does not match the expected format')
     }
-    
+
     return {
       ranking: jsonResponse.ranking,
       improvements: jsonResponse.improvements,
       qualities: jsonResponse.qualities,
       summary: jsonResponse.summary,
-      criterias: jsonResponse.criterias
-    };
+      criterias: jsonResponse.criterias,
+    }
   } catch (error) {
-    console.error('Error generating performance report:', error);
-    throw error;
+    console.error('Error generating performance report:', error)
+    throw error
   }
-}; 
+}
