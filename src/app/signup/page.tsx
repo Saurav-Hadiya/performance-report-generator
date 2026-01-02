@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -239,20 +240,16 @@ function SignupForm() {
                   Password
                 </Label>
                 <div className="relative">
-                  <Input
+                  <PasswordInput
                     id="password"
                     name="password"
-                    type="password"
                     autoComplete="new-password"
                     required
                     placeholder="Create a strong password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pr-10 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                   />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <Lock className="h-4 w-4 text-gray-400" />
-                  </div>
                 </div>
               </div>
 
@@ -262,26 +259,27 @@ function SignupForm() {
                   Confirm Password
                 </Label>
                 <div className="relative">
-                  <Input
+                  <PasswordInput
                     id="confirmPassword"
                     name="confirmPassword"
-                    type="password"
                     autoComplete="new-password"
                     required
                     placeholder="Confirm your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`pr-10 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm ${confirmPassword && password !== confirmPassword ? 'border-red-500' :
+                    className={`border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm ${confirmPassword && password !== confirmPassword ? 'border-red-500' :
                       confirmPassword && password === confirmPassword ? 'border-green-500' : ''
                       }`}
                   />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    {confirmPassword && (
-                      password === confirmPassword ?
-                        <Check className="h-4 w-4 text-green-500" /> :
+                  {confirmPassword && (
+                    <div className="absolute inset-y-0 right-12 flex items-center pointer-events-none z-10">
+                      {password === confirmPassword ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
                         <AlertCircle className="h-4 w-4 text-red-500" />
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {confirmPassword && password !== confirmPassword && (
                   <p className="text-xs text-red-500 mt-1">Passwords don't match</p>
